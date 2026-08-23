@@ -120,6 +120,30 @@ def parse_excel(file_path):
     return df
 
 
+def filter_by_volume(df):
+    """İşlem hacmine göre filtrele"""
+    filtered_rows = []
+    for idx, row in df.iterrows():
+        birim = str(row['Birim']).lower()
+        hacim = row['Islem_Hacmi']
+        
+        if 'kg' in birim:
+            # Kg birimi: 10.000 kg altı kaldır
+            if hacim >= 10000:
+                filtered_rows.append(row)
+        elif 'adet' in birim or 'bağ' in birim or 'bag' in birim:
+            # Adet/Bağ birimi: 100.000 altı kaldır
+            if hacim >= 100000:
+                filtered_rows.append(row)
+        else:
+            # Diğer birimler için filtreleme yok
+            filtered_rows.append(row)
+    
+    df_filtered = pd.DataFrame(filtered_rows)
+    print(f"Filtreleme sonrası: {len(df_filtered)} ürün (kaldırılan: {len(df) - len(df_filtered)})")
+    return df_filtered
+
+
 def send_telegram(message):
     """Telegram'a mesaj gönder"""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -152,19 +176,27 @@ def compare_prices():
     
     print(f"Şu anki tarih (Türkiye): {today.strftime('%d.%m.%Y %H:%M')}")
 
-    # Bugünün bültenini al (1 gün geri)
-    # Örnek: 23.08'de çalışırsa, 22.08 verilerini alacak
-    bulletin_today = today - timedelta(days=1)
+    # Site yapısı: "Bülten Tarihi: X (Y Tarihli Veriler)" - X = Y+1
+    # 23.08 bülteni → 22.08 verileri
+    # 22.08 bülteni → 21.08 verileri
     
-    # Dünün bültenini al (2 gün geri)
-    # Örnek: 23.08'de çalışırsa, 21.08 verilerini alacak
-    bulletin_yesterday = today - timedelta(days=2)
+    # Bugünün bültenini al (0 gün geri)
+    bulletin_today = today
+    
+    # Dünün bültenini al (1 gün geri)
+    bulletin_yesterday = today - timedelta(days=1)
 
     today_str = bulletin_today.strftime("%d.%m.%Y")
     yesterday_str = bulletin_yesterday.strftime("%d.%m.%Y")
 
-    print(f"Bülten 1 (Bugün): {today_str}")
-    print(f"Bülten 2 (Dün): {yesterday_str}")
+    # Mesajda gösterilecek gerçek veri tarihleri
+    data_today = bulletin_today - timedelta(days=1)
+    data_yesterday = bulletin_yesterday - timedelta(days=1)
+    data_today_str = data_today.strftime("%d.%m.%Y")
+    data_yesterday_str = data_yesterday.strftime("%d.%m.%Y")
+
+    print(f"Bülten 1: {today_str} (içerdiği veri: {data_today_str})")
+    print(f"Bülten 2: {yesterday_str} (içerdiği veri: {data_yesterday_str})")
 
     print("\nBugünün bülteni indiriliyor...")
     today_file = download_excel_for_date(today_str)
@@ -173,6 +205,11 @@ def compare_prices():
 
     df_today = parse_excel(today_file)
     df_yesterday = parse_excel(yesterday_file)
+
+    # İşlem hacmine göre filtrele
+    print("\nFiltreleme uygulanıyor...")
+    df_today = filter_by_volume(df_today)
+    df_yesterday = filter_by_volume(df_yesterday)
 
     df_today['Key'] = (
         df_today['Urun_Adi'] + '|' +
@@ -185,8 +222,8 @@ def compare_prices():
         df_yesterday['Urun_Turu']
     )
 
-    merged = df_today[['Key', 'Urun_Adi', 'Urun_Cinsi', 'Urun_Turu', 'Ortalama_Fiyat']].merge(
-        df_yesterday[['Key', 'Ortalama_Fiyat']],
+    merged = df_today[['Key', 'Urun_Adi', 'Urun_Cinsi', 'Urun_Turu', 'Ortalama_Fiyat', 'Islem_Hacmi']].merge(
+        df_yesterday[['Key', 'Ortalama_Fiyat', 'Islem_Hacmi']],
         on='Key',
         suffixes=('_bugun', '_dun')
     )
@@ -204,14 +241,14 @@ def compare_prices():
 
     # Mesajları oluştur
     if len(price_dropped) == 0:
-        message = "📊 **Hal Fiyat Raporu**\n\n✅ Bugün fiyatı düşen ürün bulunamadı."
+        message = " **Hal Fiyat Raporu**\n\n✅ Bugün fiyatı düşen ürün bulunamadı."
         send_telegram(message)
     else:
         # Alfabetik sırala
         price_dropped = price_dropped.sort_values('Urun_Adi')
 
         header = f"📉 **Hal Fiyat Raporu**\n\n"
-        header += f"📅 {today_str} vs {yesterday_str}\n\n"
+        header += f"📅 {data_today_str} vs {data_yesterday_str}\n\n"
         header += f"**Fiyatı Düşen {len(price_dropped)} Ürün:**\n\n"
 
         messages = []
