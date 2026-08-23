@@ -45,33 +45,74 @@ def download_excel_for_date(date_str):
         return temp_file.name
 
 def parse_excel(file_path):
-    """Excel (HTML) dosyasını oku ve DataFrame döndür"""
-    # HTML tablosunu oku
-    dfs = pd.read_html(file_path)
+    """HTML dosyasını BeautifulSoup ile oku"""
+    from bs4 import BeautifulSoup
     
-    # İkinci tablo veri tablosu (ilk tablo başlık)
-    if len(dfs) >= 2:
-        df = dfs[1]
-    else:
-        df = dfs[0]
+    # Dosyayı oku
+    with open(file_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
     
-    # Sütun isimlerini düzelt
-    df.columns = ['Urun_Adi', 'Urun_Cinsi', 'Urun_Turu', 'Ortalama_Fiyat', 'Islem_Hacmi', 'Birim']
+    # BeautifulSoup ile parse et
+    soup = BeautifulSoup(html_content, 'html.parser')
     
-    # Fiyatları sayısal yap (virgülü noktaya çevir)
-    df['Ortalama_Fiyat'] = df['Ortalama_Fiyat'].astype(str).str.replace(',', '.', regex=False)
-    df['Ortalama_Fiyat'] = pd.to_numeric(df['Ortalama_Fiyat'], errors='coerce')
+    # Tabloyu bul
+    table = soup.find('table')
     
-    # İşlem hacmini sayısal yap
-    df['Islem_Hacmi'] = df['Islem_Hacmi'].astype(str).str.replace(',', '.', regex=False)
-    df['Islem_Hacmi'] = pd.to_numeric(df['Islem_Hacmi'], errors='coerce')
+    # Satırları topla
+    rows = []
+    for tr in table.find_all('tr')[2:]:  # İlk 2 satır başlık, atla
+        cells = tr.find_all('td')
+        if len(cells) >= 6:
+            try:
+                urun_adi = cells[0].get_text(strip=True)
+                urun_cinsi = cells[1].get_text(strip=True)
+                urun_turu = cells[2].get_text(strip=True)
+                
+                # Fiyatı temizle (virgülü noktaya çevir)
+                fiyat_text = cells[3].get_text(strip=True)
+                # span içindeki sayıyı al
+                span = cells[3].find('span')
+                if span:
+                    fiyat_text = span.get_text(strip=True)
+                
+                # Virgülü noktaya çevir ve float yap
+                fiyat_text = fiyat_text.replace(',', '.')
+                ortalama_fiyat = float(fiyat_text)
+                
+                # İşlem hacmi
+                hacim_text = cells[4].get_text(strip=True)
+                span = cells[4].find('span')
+                if span:
+                    hacim_text = span.get_text(strip=True)
+                hacim_text = hacim_text.replace(',', '.')
+                islem_hacmi = float(hacim_text)
+                
+                birim = cells[5].get_text(strip=True)
+                
+                rows.append({
+                    'Urun_Adi': urun_adi,
+                    'Urun_Cinsi': urun_cinsi,
+                    'Urun_Turu': urun_turu,
+                    'Ortalama_Fiyat': ortalama_fiyat,
+                    'Islem_Hacmi': islem_hacmi,
+                    'Birim': birim
+                })
+            except Exception as e:
+                print(f"Satır okuma hatası: {e}")
+                continue
+    
+    # DataFrame oluştur
+    df = pd.DataFrame(rows)
     
     # Boş satırları temizle
     df = df.dropna(subset=['Urun_Adi'])
     df = df[df['Urun_Adi'] != '']
     
+    print(f"Toplam {len(df)} ürün okundu")
+    print(f"Örnek fiyatlar: {df['Ortalama_Fiyat'].head().tolist()}")
+    
     return df
-
+    
 def compare_prices():
     # Bugünün tarihi
     today = datetime.now()
