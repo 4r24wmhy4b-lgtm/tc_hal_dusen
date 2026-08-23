@@ -1,7 +1,7 @@
 import os
 import requests
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from playwright.sync_api import sync_playwright
 import pandas as pd
 import tempfile
@@ -146,15 +146,22 @@ def send_telegram(message):
 
 def compare_prices():
     """Fiyatları karşılaştır ve rapor oluştur"""
-    today = datetime.now()
+    # Türkiye saatini kullan (UTC+3)
+    tz_tr = timezone(timedelta(hours=3))
+    today = datetime.now(tz_tr)
+    
+    print(f"Şu anki tarih (Türkiye): {today.strftime('%d.%m.%Y %H:%M')}")
 
+    # Bugünün bültenini al (1 gün geri)
     bulletin_today = today - timedelta(days=1)
+    # Dünün bültenini al (2 gün geri)
     bulletin_yesterday = today - timedelta(days=2)
-
-    if bulletin_today.weekday() == 5:
+    
+    # Hafta sonu kontrolü
+    if bulletin_today.weekday() == 5:  # Cumartesi
         bulletin_today = bulletin_today - timedelta(days=1)
         bulletin_yesterday = bulletin_today - timedelta(days=1)
-    elif bulletin_today.weekday() == 6:
+    elif bulletin_today.weekday() == 6:  # Pazar
         bulletin_today = bulletin_today - timedelta(days=2)
         bulletin_yesterday = bulletin_today - timedelta(days=1)
 
@@ -222,7 +229,7 @@ def compare_prices():
             fiyat_bugun = row['Ortalama_Fiyat_bugun']
             degisim = row['yuzde_degisim']
 
-            line = f"• {urun}: {fiyat_dun:.2f}₺ ➔ **{fiyat_bugun:.2f}₺** ({degisim}%)\n"
+            line = f"• {urun}: {fiyat_dun:.2f} ➔ **{fiyat_bugun:.2f}₺** ({degisim}%)\n"
             line_length = len(line)
 
             if current_length + line_length > 4000:
