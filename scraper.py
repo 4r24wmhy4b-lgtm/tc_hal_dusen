@@ -251,7 +251,7 @@ def compare_prices():
         price_dropped_traditional = price_dropped_traditional.sort_values('Urun_Adi')
 
         header = f"📉 **Hal Fiyat Raporu**\n\n"
-        header += f" {data_today_str} vs {data_yesterday_str}\n\n"
+        header += f" {data_yesterday_str} vs {data_today_str}\n\n"
         header += f"**Fiyatı Düşen {len(price_dropped_traditional)} Geleneksel Ürün:**\n\n"
 
         messages = []
