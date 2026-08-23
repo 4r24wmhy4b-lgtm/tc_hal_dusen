@@ -239,23 +239,26 @@ def compare_prices():
 
     print(f"Fiyatı düşen ürün sayısı: {len(price_dropped)}")
 
-    # Mesajları oluştur
-    if len(price_dropped) == 0:
-        message = " **Hal Fiyat Raporu**\n\n✅ Bugün fiyatı düşen ürün bulunamadı."
+    # SADECE Geleneksel(Konvansiyonel) ürünleri al
+    price_dropped_traditional = price_dropped[price_dropped['Urun_Turu'] == 'Geleneksel(Konvansiyonel)']
+    print(f"Geleneksel(Konvansiyonel) ürün sayısı: {len(price_dropped_traditional)}")
+    
+    if len(price_dropped_traditional) == 0:
+        message = "📊 **Hal Fiyat Raporu**\n\n✅ Bugün fiyatı düşen Geleneksel ürün bulunamadı."
         send_telegram(message)
     else:
         # Alfabetik sırala
-        price_dropped = price_dropped.sort_values('Urun_Adi')
+        price_dropped_traditional = price_dropped_traditional.sort_values('Urun_Adi')
 
         header = f"📉 **Hal Fiyat Raporu**\n\n"
-        header += f"📅 {data_today_str} vs {data_yesterday_str}\n\n"
-        header += f"**Fiyatı Düşen {len(price_dropped)} Ürün:**\n\n"
+        header += f" {data_today_str} vs {data_yesterday_str}\n\n"
+        header += f"**Fiyatı Düşen {len(price_dropped_traditional)} Geleneksel Ürün:**\n\n"
 
         messages = []
         current_message = header
         current_length = len(header)
 
-        for idx, row in price_dropped.iterrows():
+        for idx, row in price_dropped_traditional.iterrows():
             urun = f"{row['Urun_Adi']} ({row['Urun_Cinsi']})"
             fiyat_dun = row['Ortalama_Fiyat_dun']
             fiyat_bugun = row['Ortalama_Fiyat_bugun']
