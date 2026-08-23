@@ -45,12 +45,32 @@ def download_excel_for_date(date_str):
         return temp_file.name
 
 def parse_excel(file_path):
-    """HTML dosyasını BeautifulSoup ile oku"""
+    """HTML dosyasını BeautifulSoup ile oku (encoding otomatik tespit)"""
     from bs4 import BeautifulSoup
     
-    # Dosyayı oku
-    with open(file_path, 'r', encoding='utf-8') as f:
-        html_content = f.read()
+    # Dosyayı BINARY olarak oku
+    with open(file_path, 'rb') as f:
+        raw_content = f.read()
+    
+    # Encoding'i otomatik tespit et
+    if raw_content.startswith(b'\xff\xfe'):
+        # UTF-16 LE (Little Endian)
+        html_content = raw_content.decode('utf-16')
+    elif raw_content.startswith(b'\xfe\xff'):
+        # UTF-16 BE (Big Endian)
+        html_content = raw_content.decode('utf-16')
+    elif raw_content.startswith(b'\xef\xbb\xbf'):
+        # UTF-8 with BOM
+        html_content = raw_content.decode('utf-8-sig')
+    else:
+        # UTF-8 veya Windows-1254 (Türkçe) dene
+        try:
+            html_content = raw_content.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                html_content = raw_content.decode('windows-1254')
+            except UnicodeDecodeError:
+                html_content = raw_content.decode('latin-1')
     
     # BeautifulSoup ile parse et
     soup = BeautifulSoup(html_content, 'html.parser')
@@ -68,14 +88,13 @@ def parse_excel(file_path):
                 urun_cinsi = cells[1].get_text(strip=True)
                 urun_turu = cells[2].get_text(strip=True)
                 
-                # Fiyatı temizle (virgülü noktaya çevir)
+                # Fiyatı temizle
                 fiyat_text = cells[3].get_text(strip=True)
-                # span içindeki sayıyı al
                 span = cells[3].find('span')
                 if span:
                     fiyat_text = span.get_text(strip=True)
                 
-                # Virgülü noktaya çevir ve float yap
+                # Virgülü noktaya çevir
                 fiyat_text = fiyat_text.replace(',', '.')
                 ortalama_fiyat = float(fiyat_text)
                 
@@ -103,8 +122,6 @@ def parse_excel(file_path):
     
     # DataFrame oluştur
     df = pd.DataFrame(rows)
-    
-    # Boş satırları temizle
     df = df.dropna(subset=['Urun_Adi'])
     df = df[df['Urun_Adi'] != '']
     
