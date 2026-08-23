@@ -2,7 +2,7 @@ name: Daily Hal Price Scraper
 
 on:
   schedule:
-    - cron: '20 8 * * *'
+    - cron: '0 14 * * *'  # Her gün 14:00 UTC = 17:00 Türkiye saati
   workflow_dispatch:
 
 jobs:
