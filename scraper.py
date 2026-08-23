@@ -198,8 +198,51 @@ def compare_prices():
             
             message += f"• {urun}: {fiyat_dun:.2f}₺ ➔ **{fiyat_bugun:.2f}₺** ({degisim}%)\n"
         
-        if len(price_dropped) > 20:
-            message += f"\n_... ve {len(price_dropped) - 20} ürün daha_"
+        if len(price_dropped) == 0:
+        message = "📊 **Hal Fiyat Raporu**\n\n✅ Bugün fiyatı düşen ürün bulunamadı."
+        send_telegram(message)
+    else:
+        # Alfabetik sırala
+        price_dropped = price_dropped.sort_values('Urun_Adi')
+        
+        header = f"📉 **Hal Fiyat Raporu**\n\n"
+        header += f"📅 {today_str} vs {yesterday_str}\n\n"
+        header += f"**Fiyatı Düşen {len(price_dropped)} Ürün:**\n\n"
+        
+        # Tüm ürünleri listele
+        messages = []
+        current_message = header
+        current_length = len(header)
+        
+        for idx, row in price_dropped.iterrows():
+            urun = f"{row['Urun_Adi']} ({row['Urun_Cinsi']})"
+            fiyat_dun = row['Ortalama_Fiyat_dun']
+            fiyat_bugun = row['Ortalama_Fiyat_bugun']
+            degisim = row['yuzde_degisim']
+            
+            line = f"• {urun}: {fiyat_dun:.2f}₺ ➔ **{fiyat_bugun:.2f}₺** ({degisim}%)\n"
+            line_length = len(line)
+            
+            # Eğer mevcut mesaj + yeni satır 4000 karakteri geçiyorsa, yeni mesaj başlat
+            if current_length + line_length > 4000:
+                messages.append(current_message)
+                current_message = line
+                current_length = line_length
+            else:
+                current_message += line
+                current_length += line_length
+        
+        # Son mesajı ekle
+        if current_message and current_message != header:
+            messages.append(current_message)
+        
+        # Tüm mesajları gönder
+        for i, msg in enumerate(messages, 1):
+            if len(messages) > 1:
+                msg = f"**({i}/{len(messages)})**\n\n{msg}"
+            send_telegram(msg)
+            import time
+            time.sleep(1)  # Telegram rate limit için 1 saniye bekle
     
     # Dosyaları temizle
     os.unlink(today_file)
