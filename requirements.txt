@@ -2,3 +2,4 @@ requests
 pandas
 playwright
 lxml
+beautifulsoup4
