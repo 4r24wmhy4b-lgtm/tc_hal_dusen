@@ -153,17 +153,12 @@ def compare_prices():
     print(f"Şu anki tarih (Türkiye): {today.strftime('%d.%m.%Y %H:%M')}")
 
     # Bugünün bültenini al (1 gün geri)
+    # Örnek: 23.08'de çalışırsa, 22.08 verilerini alacak
     bulletin_today = today - timedelta(days=1)
-    # Dünün bültenini al (2 gün geri)
-    bulletin_yesterday = today - timedelta(days=2)
     
-    # Hafta sonu kontrolü
-    if bulletin_today.weekday() == 5:  # Cumartesi
-        bulletin_today = bulletin_today - timedelta(days=1)
-        bulletin_yesterday = bulletin_today - timedelta(days=1)
-    elif bulletin_today.weekday() == 6:  # Pazar
-        bulletin_today = bulletin_today - timedelta(days=2)
-        bulletin_yesterday = bulletin_today - timedelta(days=1)
+    # Dünün bültenini al (2 gün geri)
+    # Örnek: 23.08'de çalışırsa, 21.08 verilerini alacak
+    bulletin_yesterday = today - timedelta(days=2)
 
     today_str = bulletin_today.strftime("%d.%m.%Y")
     yesterday_str = bulletin_yesterday.strftime("%d.%m.%Y")
@@ -229,7 +224,7 @@ def compare_prices():
             fiyat_bugun = row['Ortalama_Fiyat_bugun']
             degisim = row['yuzde_degisim']
 
-            line = f"• {urun}: {fiyat_dun:.2f} ➔ **{fiyat_bugun:.2f}₺** ({degisim}%)\n"
+            line = f"• {urun}: {fiyat_dun:.2f}₺ ➔ **{fiyat_bugun:.2f}₺** ({degisim}%)\n"
             line_length = len(line)
 
             if current_length + line_length > 4000:
